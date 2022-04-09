@@ -1,3 +1,6 @@
+from rdkit import RDLogger
+RDLogger.DisableLog('rdApp.*')
+
 import os
 import pickle
 import numpy as np

@@ -1,0 +1,17 @@
+# RDKit feature definitions
+
+# x
+DefineFeature H [C,N,O,S,P,F,Cl,Br,I]
+  Family H
+  Weights 1
+EndFeature
+
+# aromatic
+DefineFeature ar6 a1aaaaa1
+  Family a
+  Weights 1,1,1,1,1,1
+EndFeature
+DefineFeature ar5 a1aaaa1
+  Family a
+  Weights 1,1,1,1,1
+EndFeature

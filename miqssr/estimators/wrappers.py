@@ -7,6 +7,7 @@ from torch.nn import Sigmoid, Sequential, Linear, ReLU
 from torch.utils.data import Dataset
 from sklearn.model_selection import train_test_split
 from .mi_nets import MainNet
+from .base_nets import BaseClassifier, BaseRegressor
 
 
 class MBSplitter(Dataset):
@@ -20,18 +21,6 @@ class MBSplitter(Dataset):
 
     def __len__(self):
         return len(self.y)
-
-
-class BaseClassifier:
-    def loss(self, y_pred, y_true):
-        total_loss = nn.BCELoss(reduction='mean')(y_pred, y_true.reshape(-1, 1))
-        return total_loss
-
-
-class BaseRegressor:
-    def loss(self, y_pred, y_true):
-        total_loss = nn.MSELoss(reduction='mean')(y_pred, y_true.reshape(-1, 1))
-        return total_loss
 
 
 class MLP(nn.Module):
@@ -85,7 +74,9 @@ class MLP(nn.Module):
             out = Sigmoid()(out)
         return out
 
-    def fit(self, x, y, n_epoch=100, batch_size=128, lr=0.001, weight_decay=0, dropout=0, verbose=False):
+    def fit(self, x, y, n_epoch=100, batch_size=128, lr=0.001, weight_decay=0, dropout=0, theta=0.5, verbose=False):
+        
+        self.theta = theta
 
         x_train, x_val, y_train, y_val = self.train_val_split(x, y)
         optimizer = optim.Yogi(self.parameters(), lr=lr, weight_decay=weight_decay)
@@ -130,7 +121,7 @@ class MLPNetRegressor(MLP, BaseRegressor):
     def __init__(self, ndim=None, init_cuda=False):
         super().__init__(ndim=ndim, init_cuda=init_cuda)
 
-class MIWrapper:
+class BagWrapper:
 
     def __init__(self, estimator, pool='mean'):
         self.estimator = estimator
@@ -149,10 +140,10 @@ class MIWrapper:
             bags_modified = np.asarray([np.amin(bag, axis=0) for bag in bags])
         return bags_modified
 
-    def fit(self, bags, labels, n_epoch=100, batch_size=128, weight_decay=0, dropout=0, temp=1, lr=0.001):
+    def fit(self, bags, labels, n_epoch=100, batch_size=128, weight_decay=0, dropout=0, temp=1, theta=0.5, lr=0.001):
         bags_modified = self.apply_pool(bags)
         self.estimator.fit(bags_modified, labels, n_epoch=n_epoch, batch_size=batch_size,
-                           dropout=dropout, weight_decay=weight_decay, lr=lr)
+                           dropout=dropout, weight_decay=weight_decay, theta=theta, lr=lr)
         return self.estimator
 
     def predict(self, bags):
@@ -164,7 +155,7 @@ class MIWrapper:
         return '{}{}'.format(self.__class__.__name__, self.pool.capitalize())
 
 
-class miWrapper:
+class InstanceWrapper:
 
     def __init__(self, estimator, pool='mean'):
         self.estimator = estimator
@@ -181,12 +172,12 @@ class miWrapper:
             print('No exist')
         return preds
 
-    def fit(self, bags, labels, n_epoch=100, batch_size=128, dropout=0, weight_decay=0, lr=0.001):
+    def fit(self, bags, labels, n_epoch=100, batch_size=128, dropout=0, weight_decay=0, theta=0.5, lr=0.001, verbose=False):
         bags = np.asarray(bags)
         bags_modified = np.vstack(bags)
         labels_modified = np.hstack([float(lb) * np.array(np.ones(len(bag))) for bag, lb in zip(bags, labels)])
         self.estimator.fit(bags_modified, labels_modified, n_epoch=n_epoch, batch_size=batch_size,
-                           dropout=dropout, weight_decay=weight_decay, lr=lr)
+                           dropout=dropout, weight_decay=weight_decay, theta=theta, lr=lr, verbose=verbose)
         return self.estimator
 
     def predict(self, bags):
@@ -197,21 +188,21 @@ class miWrapper:
         return '{}{}'.format(self.__class__.__name__, self.pool.capitalize())
 
 
-class MIWrapperMLPRegressor(MIWrapper, BaseRegressor):
+class BagWrapperMLPRegressor(BagWrapper, BaseRegressor):
 
     def __init__(self, ndim=None, pool='mean', init_cuda=False):
         estimator = MLPNetRegressor(ndim=ndim, init_cuda=init_cuda)
         super().__init__(estimator=estimator, pool=pool)
 
 
-class MIWrapperMLPClassifier(MIWrapper, BaseClassifier):
+class BagWrapperMLPClassifier(BagWrapper, BaseClassifier):
 
     def __init__(self, ndim=None, pool='mean', init_cuda=False):
         estimator = MLPNetClassifier(ndim=ndim, init_cuda=init_cuda)
         super().__init__(estimator=estimator, pool=pool)
 
 
-class miWrapperMLPRegressor(miWrapper, BaseRegressor):
+class InstanceWrapperMLPRegressor(InstanceWrapper, BaseRegressor):
 
     def __init__(self, ndim=None, pool='mean', init_cuda=False):
 
@@ -219,7 +210,7 @@ class miWrapperMLPRegressor(miWrapper, BaseRegressor):
         super().__init__(estimator=estimator, pool=pool)
 
 
-class miWrapperMLPClassifier(miWrapper, BaseClassifier):
+class InstanceWrapperMLPClassifier(InstanceWrapper, BaseClassifier):
 
     def __init__(self, ndim=None, pool='mean', init_cuda=False):
         estimator = MLPNetClassifier(ndim=ndim, init_cuda=init_cuda)

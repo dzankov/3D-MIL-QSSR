@@ -7,6 +7,10 @@ from torch.nn import Sigmoid
 from sklearn.model_selection import train_test_split
 from .utils import MBSplitter
 
+def QuanLoss(true, pred, theta=0.1):
+    loss = torch.where(true >= pred, theta * (torch.abs(true - pred)), (1 - theta) * (torch.abs(true - pred)))
+    return torch.mean(loss)
+
 class BaseClassifier:
     def loss(self, y_pred, y_true):
         total_loss = nn.BCELoss(reduction='mean')(y_pred, y_true.reshape(-1, 1))
@@ -16,6 +20,7 @@ class BaseClassifier:
 class BaseRegressor:
     def loss(self, y_pred, y_true):
         total_loss = nn.MSELoss(reduction='mean')(y_pred, y_true.reshape(-1, 1))
+        #total_loss = QuanLoss(y_pred, y_true.reshape(-1, 1), theta=self.theta)
         return total_loss
 
 
@@ -51,8 +56,7 @@ class BaseNet(nn.Module):
         x, y = np.asarray(x), np.asarray(y)
         x, m = self.add_padding(x)
 
-        x_train, x_val, y_train, y_val, m_train, m_val = train_test_split(x, y, m, test_size=val_size,
-                                                                          random_state=random_state)
+        x_train, x_val, y_train, y_val, m_train, m_val = train_test_split(x, y, m, test_size=val_size, random_state=random_state)
         x_train, y_train, m_train = self.array_to_tensor(x_train, y_train, m_train)
         x_val, y_val, m_val = self.array_to_tensor(x_val, y_val, m_val)
 
@@ -90,8 +94,9 @@ class BaseNet(nn.Module):
         out = out.view(-1, 1)
         return None, out
 
-    def fit(self, x, y, n_epoch=100, batch_size=128, lr=0.001, weight_decay=0, dropout=0, verbose=False):
+    def fit(self, x, y, n_epoch=100, batch_size=128, lr=0.001, weight_decay=0, dropout=0, theta=0.5, verbose=False):
         self.dropout = dropout
+        self.theta = theta
 
         x_train, x_val, y_train, y_val, m_train, m_val = self.train_val_split(x, y)
         optimizer = optim.Yogi(self.parameters(), lr=lr, weight_decay=weight_decay)
