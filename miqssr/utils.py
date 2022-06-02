@@ -32,7 +32,7 @@ def calc_3d_rdkit(conf_file, path='.', ncpu=10):
     return out_fname
 
 
-def calc_3d_pmapper(conf_file, path='.', ncpu=10):
+def calc_3d_pmapper(conf_file, path='.', ncpu=10, verbose=True):
     
     out_fname = os.path.join(path, 'PhFprPmapper_{}.txt'.format(os.path.basename(conf_file).split('.')[0]))
     
@@ -42,7 +42,7 @@ def calc_3d_pmapper(conf_file, path='.', ncpu=10):
     
     calc_pmapper_descriptors(inp_fname=conf_file, out_fname=out_fname, 
                              smarts_features=smarts_features, factory=factory,
-                             descr_num=[3], remove=0.05, keep_temp=False, ncpu=ncpu, verbose=False)
+                             descr_num=[3], remove=0.05, keep_temp=False, ncpu=ncpu, verbose=verbose)
 
     return out_fname
 
@@ -130,10 +130,10 @@ def calc_2d_descr(input_fname=None, ncpu=10, path='.'):
     return out_fnames
 
 
-def calc_3d_descr(input_fname=None, nconfs=[1, 50], energy=10, ncpu=5, path='.'):
+def calc_3d_descr(input_fname=None, nconfs=[1, 50], energy=10, ncpu=5, path='.', verbose=True):
     cat_data_file, cat_ids = create_catalyst_input_file(input_fname)
     
-    conf_files = gen_confs(cat_data_file, ncpu=ncpu, nconfs_list=nconfs, stereo=False, energy=energy, path=path)
+    conf_files = gen_confs(cat_data_file, ncpu=ncpu, nconfs_list=nconfs, stereo=False, energy=energy, path=path, verbose=verbose)
 
     os.remove(cat_data_file)
     
@@ -144,7 +144,7 @@ def calc_3d_descr(input_fname=None, nconfs=[1, 50], energy=10, ncpu=5, path='.')
 
         for dsc_calc_func, dsc_name in zip([calc_3d_pmapper], ['PhFprPmapper']):
 
-            cat_out_fname = dsc_calc_func(conf_file, ncpu=ncpu, path=path)
+            cat_out_fname = dsc_calc_func(conf_file, ncpu=ncpu, path=path, verbose=verbose)
             raws_out_fname = cat_out_fname.replace('txt', 'rownames')
 
             with open(cat_out_fname) as f:

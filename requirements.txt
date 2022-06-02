@@ -1,9 +1,0 @@
-joblib
-numpy
-pandas
-scikit-learn
-torch
-rdkit
-CGRTools
-CIMTools
-openbabel

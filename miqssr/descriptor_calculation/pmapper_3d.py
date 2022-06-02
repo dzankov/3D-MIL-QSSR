@@ -171,6 +171,7 @@ def main(inp_fname=None, out_fname=None, smarts_features=None, factory=None,
     stat = defaultdict(set)
     
     # create temp file with all descriptors
+    n_mols_max = len(list(read_input(inp_fname)))
     for i, (mol_title, desc) in enumerate(pool.imap(partial(process_mol_map, descr_num=descr_num, smarts_features=smarts_features), 
                                                             read_input(inp_fname), chunksize=1), 1):
     
@@ -179,9 +180,8 @@ def main(inp_fname=None, out_fname=None, smarts_features=None, factory=None,
             if desc_dict:
                 ids = svm.save_mol_descriptors(mol_title, desc_dict)
                 stat[mol_title].update(ids)
-        if verbose and i % 10 == 0:
-            sys.stderr.write(f'\r{i} molecule records were processed')
-    sys.stderr.write('\n')
+        if verbose:
+            print(f'3D Descriptor calculation: {i}/{n_mols_max} conformations encoded with {len(stat)} descriptors',  end='\r')
 
     if remove == 0:  # if no remove - rename temp files to output files
         os.rename(tmp_fname, out_fname)
@@ -194,6 +194,7 @@ def main(inp_fname=None, out_fname=None, smarts_features=None, factory=None,
         threshold = len(stat) * remove
         
         desc_ids = {k for k, v in c.items() if v >= threshold}
+        print(f'\n=> {len(desc_ids)} descriptors after removing rare descriptors.\n')
 
         # create output files with removed descriptors
 

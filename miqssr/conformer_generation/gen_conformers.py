@@ -39,7 +39,7 @@ def get_n_confs(conf_log, nconf_list, out_partfname):
     return out_fnames
 
 
-def gen_confs(fname, nconfs_list, stereo=True, energy=50, path=None, ncpu=4):
+def gen_confs(fname, nconfs_list, stereo=True, energy=50, path=None, ncpu=4, verbose=True):
     '''
 
     :param fname: smi file. Mol_name, smiles, act
@@ -84,7 +84,7 @@ def gen_confs(fname, nconfs_list, stereo=True, energy=50, path=None, ncpu=4):
                                rms=.5,
                                ncpu=ncpu,
                                seed=42,
-                               verbose=False,
+                               verbose=verbose,
                                log=True)
 
     out_partfname = os.path.join(path, 'conf-{0}_{1}.pkl'.format(os.path.basename(in_fname).split('.')[0], '{}'))
