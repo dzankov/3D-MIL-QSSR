@@ -14,5 +14,8 @@ The developed modeling protocol is now in progress and will be updated soon
 * CGRTools
 * CIMTools
 
+# Graphical User Interface (GUI)
+3D multi-conformer models are available at https://chematlas.chimie.unistra.fr/Predictor/qscer.php.
+
 
 
