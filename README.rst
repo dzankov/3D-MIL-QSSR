@@ -36,10 +36,10 @@ Install required packages
 Usage
 ============
 
-* prepare the configuration file (see `config.yaml <https://github.com/dzankov/3D-MIL-QSSR/blob/main/config.yaml>`_)
+* prepare your configuration file (see `config.yaml <https://github.com/dzankov/3D-MIL-QSSR/blob/main/config.yaml>`_)
 
 
-* run model building:
+* run model building
 
 .. code-block:: bash
 
