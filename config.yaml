@@ -1,0 +1,22 @@
+General:
+  num_cpu: 20
+  num_gpu: 1
+  results_path: 3d_model_aptc
+Data:
+  training_dataset_path: datasets/aptc/aptc_training_datatest.csv
+  test_dataset_path: datasets/aptc/aptc_test_datatest.csv
+  reactants: ['REACTANT_1', 'REACTANT_2']
+  catalyst: ['CATALYST']
+  activity: ['ACTIVITY']
+Conformers:
+  max_num_conf: 50
+  energy_window: 50
+Descriptors:
+  num_descr: 3
+  smarts_path: smarts_features.txt
+Algorithm:
+  type: InstanceWrapperMLPRegressor
+  pooling: mean
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  n_epoch: 500
