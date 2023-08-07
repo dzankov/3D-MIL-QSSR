@@ -166,7 +166,7 @@ def main_params(in_fname, out_fname, id_field_name, nconf, energy, rms, ncpu, se
 
     nprocess = min(cpu_count(), max(ncpu, 1))
     p = Pool(nprocess)
-    
+
     n_mols_max = len(list(prep_input(in_fname, id_field_name, nconf, energy, rms, seed)))
     try:
         for i, (mol_name, mol, act, mol_id) in enumerate(
@@ -214,8 +214,9 @@ def main_params(in_fname, out_fname, id_field_name, nconf, energy, rms, ncpu, se
                         else:
                             writer.write(string.encode("ascii") if output_file_type == 'sdf.gz' else string)
 
-            if verbose:
+            if True:
                 print(f'Conformation generation: {i}/{n_mols_max} molecules passed.',  end='\r')
+        print(f'Conformer generation: {i}/{n_mols_max} molecules passed.')
 
     finally:
         p.close()

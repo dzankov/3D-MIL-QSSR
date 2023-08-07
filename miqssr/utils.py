@@ -1,194 +1,166 @@
 import os
-import pickle
-import joblib
-import pkg_resources
 import numpy as np
 import pandas as pd
-from collections import defaultdict
-from itertools import groupby
-from sklearn.pipeline import Pipeline
-from CGRtools import RDFRead, RDFWrite
-from CIMtools.preprocessing import Fragmentor, CGR, EquationTransformer, SolventVectorizer
-from pmapper.customize import load_smarts, load_factory
-from .conformer_generation.gen_conformers import gen_confs
-from .descriptor_calculation.pmapper_3d import calc_pmapper_descriptors
-from .descriptor_calculation.rdkit_morgan import calc_morgan_descriptors
 
-fragmentor_path = pkg_resources.resource_filename(__name__, './')
-os.environ['PATH'] += ':{}'.format(fragmentor_path)
+from rdkit import Chem
+from rdkit import DataStructs
+from rdkit.Chem import AllChem
 
+from sklearn.preprocessing import MaxAbsScaler
 
-def read_pkl(fname):
-    with open(fname, 'rb') as f:
-        while True:
-            try:
-                yield pickle.load(f)
-            except EOFError:
-                break
+from pmapper.customize import load_smarts
 
-                
-def calc_3d_rdkit(conf_file, path='.', ncpu=10):
-    out_fname = calc_rdkit_descriptors(conf_file, path=path, ncpu=ncpu)
-    return out_fname
+from miqssr.conformer_generation.gen_conformers import gen_confs
+from miqssr.descriptor_calculation.pmapper_3d import calc_pmapper_descriptors
 
 
-def calc_3d_pmapper(conf_file, path='.', ncpu=10, verbose=True):
-    
-    out_fname = os.path.join(path, 'PhFprPmapper_{}.txt'.format(os.path.basename(conf_file).split('.')[0]))
-    
-
-    smarts_features = load_smarts('./miqssr/smarts_features.txt')
-    factory = load_factory('./miqssr/smarts_features.fdef')
-    
-    calc_pmapper_descriptors(inp_fname=conf_file, out_fname=out_fname, 
-                             smarts_features=smarts_features, factory=factory,
-                             descr_num=[3], remove=0.05, keep_temp=False, ncpu=ncpu, verbose=verbose)
-
-    return out_fname
+def rdkit_numpy_convert(fp):
+    output = []
+    for f in fp:
+        arr = np.zeros((1,))
+        DataStructs.ConvertToNumpyArray(f, arr)
+        output.append(arr)
+    return np.asarray(output)
 
 
-def calc_2d_isida(fname, path='.'):
-    reacts = RDFRead(fname, remap=False).read()
-    for reaction in reacts:
-        reaction.standardize()
-        reaction.kekule()
-        reaction.implicify_hydrogens()
-        reaction.thiele()
-        reaction.clean2d()
+def scale_data(x_train, x_test):
+    scaler = MaxAbsScaler()
+    scaler.fit(np.vstack(x_train))
+    x_train_scaled = x_train.copy()
+    x_test_scaled = x_test.copy()
+    for i, bag in enumerate(x_train):
+        x_train_scaled[i] = scaler.transform(bag)
+    for i, bag in enumerate(x_test):
+        x_test_scaled[i] = scaler.transform(bag)
+    return np.array(x_train_scaled), np.array(x_test_scaled)
 
-    frag = Pipeline(
-        [('CGR', CGR()), ('frg', Fragmentor(fragment_type=9, max_length=5, useformalcharge=True, version='2017.x'))])
-    res = frag.fit_transform(reacts)
-    res['react_id'] = [i.meta['ID'] for i in reacts]
-    res['act'] = [i.meta['SELECTIVITY'] for i in reacts]
+
+def load_svm_data(fname):
+    def str_to_vec(dsc_str, dsc_num):
+
+        tmp = {}
+        for i in dsc_str.split(' '):
+            tmp[int(i.split(':')[0])] = int(i.split(':')[1])
+        #
+        tmp_sorted = {}
+        for i in range(dsc_num):
+            tmp_sorted[i] = tmp.get(i, 0)
+        vec = list(tmp_sorted.values())
+
+        return vec
+
     #
-    out_fname = os.path.join(path, '2DDescrISIDA_cgr-data_0.csv')
-    res.to_csv(out_fname, index=False)
+    with open(fname) as f:
+        dsc_tmp = [i.strip() for i in f.readlines()]
 
-    import shutil
-    del frag
-    frg_files = [i for i in os.listdir() if i.startswith('frg')]
-    for file in frg_files:
-        if os.path.isfile(file):
-            os.remove(file)
-        else:
-            shutil.rmtree(file)
-
-    return out_fname
-
-
-def create_catalyst_input_file(input_fname=None):
-    data = RDFRead(input_fname, remap=False).read()
-
-    groups = []
-    for k, g in groupby(data, lambda x: x.meta['CATALYST_SMILES']):
-        groups.append(list(g))
+    with open(fname.replace('txt', 'rownames')) as f:
+        idx_tmp = [int(i.split('_')[0]) for i in f.readlines()]
     #
-    smiles = [i[0].meta['CATALYST_SMILES'] for i in groups]
-    act = [np.mean([float(i.meta['SELECTIVITY']) for i in x]) for x in groups]
+    dsc_num = max([max([int(j.split(':')[0]) for j in i.strip().split(' ')]) for i in dsc_tmp]) + 1
+    #
+    bags, idx = [], []
+    for cat_idx in list(np.unique(idx_tmp)):
+        bag, idx_ = [], []
+        for dsc_str, i in zip(dsc_tmp, idx_tmp):
+            if i == cat_idx:
+                bag.append(str_to_vec(dsc_str, dsc_num))
+                idx_.append(i)
+
+        bags.append(np.array(bag).astype('uint8'))
+        idx.append(idx_[0])
+    #
+    bags, idx = np.array(bags, dtype=object), np.array(idx, dtype=object)
+    bags_dict = {k: v for k, v in zip(idx, bags)}
+
+    return bags_dict
+
+
+def read_input_data(fname, cols=None):
+    data = pd.read_csv(fname)
+
+    reactants = data[cols['REACTANTS']]
+    catalysts = data[cols['CATALYST']]
+
+    try:
+        activity = np.array(list(data[cols['ACTIVITY']]))
+    except:
+        activity = [None for i in reactants.values]
+
+    # indexes
+    cat_idx = {i: n for n, i in enumerate(catalysts.unique())}
+
+    react_cat_idx = {}
+    for n, cat in zip(range(len(reactants)), catalysts):
+        react_cat_idx[n] = cat_idx[cat]
+
+    return reactants, catalysts, activity, react_cat_idx
+
+
+def gen_catalyst_confs(mols, idx, num_confs=[50], energy=50, num_cpu=1, path='.'):
     #
     res = []
-    ids = {}
-    for i in range(len(smiles)):
-        res.append({'SMILES': smiles[i], 'MOL_ID': i, 'ACT': act[i]})
-        ids[i] = [x.meta['ID'] for x in groups[i]]
+    for smi, i in zip(mols, idx):
+        res.append({'SMILES': smi, 'MOL_ID': idx[i], 'ACT': None})
     #
-    out_fname = 'catalyst_data.smi'
-    res = pd.DataFrame(res)
-    res.to_csv(out_fname, index=False, header=False)
+    cat_file = os.path.join(path, 'catalyst_data.smi')
+    res = pd.DataFrame(res).drop_duplicates()
+    res.to_csv(cat_file, index=False, header=False)
+    #
+    conf_files = gen_confs(cat_file,
+                           nconfs_list=[num_confs],
+                           stereo=False,
+                           energy=energy,
+                           ncpu=num_cpu,
+                           path=path,
+                           verbose=False)
 
-    return out_fname, ids
+    return conf_files
 
 
-def calc_2d_descr(input_fname=None, ncpu=10, path='.'):
-    cat_data_file, cat_ids = create_catalyst_input_file(input_fname)
-    react_out_fname = calc_2d_isida(input_fname, path=path)
-    
-    out_fnames = []
-    for dsc_calc_func, dsc_name in zip([calc_2d_descriptors, calc_morgan_descriptors], ['2DDescrRDKit', 'MorganFprRDKit']):
+def calc_reaction_descr(reacts, path='.'):
 
-        cat_out_fname = dsc_calc_func(cat_data_file, ncpu=ncpu, path=path)
+    # train descr
+    descr = []
+    for react in reacts.values:
+        x = np.concatenate(rdkit_numpy_convert([AllChem.GetMorganFingerprintAsBitVect(
+            Chem.MolFromSmiles(mol), 2) for mol in react]))
+        descr.append(x)
+    descr = pd.DataFrame(np.array(descr))
+    #
+    descr.to_csv(os.path.join(path, 'reaction_descr.csv'), index=False)
+
+    return descr
+
+
+def calc_catalyst_descr(conf_file=None, smarts_features=None, num_descr=[3], ncpu=5, path='.'):
+    smarts_features = load_smarts(smarts_features)
+
+    conf_file = os.path.join(conf_file, 'catalyst_conformers.pkl')
+    out_fname = os.path.join(path, 'catalyst_descriptors.txt')
+
+    calc_pmapper_descriptors(inp_fname=conf_file,
+                             out_fname=out_fname,
+                             smarts_features=smarts_features,
+                             descr_num=num_descr,
+                             remove=0.05,
+                             keep_temp=False,
+                             ncpu=ncpu,
+                             verbose=False)
+
+    # read catalyst descr file
+    bags_dict = load_svm_data(out_fname)
+
+    return bags_dict
+
+
+def concat_react_cat_descr(reacts_descr, bags_dict, react_cat_idx):
+    bags = []
+    for react_i, cat_i in react_cat_idx.items():
+        cat_bag = bags_dict[cat_i]
+        react_vec = reacts_descr.iloc[[react_i]].values
+        react_bag = np.repeat(react_vec, len(cat_bag), axis=0)
         #
-        reacts = pd.read_csv(react_out_fname, index_col='react_id')
-        catalysts = pd.read_csv(cat_out_fname, index_col='mol_id').sort_index().drop(['act'], axis=1)
-        #
-        res = []
-        for i in catalysts.index.unique():
-            for j in cat_ids[i]:
-                cat = catalysts.loc[i:i]
-                react = pd.concat([reacts.loc[j:j]] * len(cat))
-                react_cat = pd.concat([react, cat.set_index(react.index)], axis=1)
+        bags.append(np.concatenate((react_bag, cat_bag), axis=1))
 
-                res.append(react_cat)
+    return np.array(bags, dtype=object)
 
-        out_fname = os.path.join(path, f'{dsc_name}_concat-data_0.csv')
-        pd.concat(res).to_csv(out_fname)
-        out_fnames.append(out_fname)
-    # 
-    os.remove(cat_data_file)
-
-    return out_fnames
-
-
-def calc_3d_descr(input_fname=None, nconfs=[1, 50], energy=10, ncpu=5, path='.', verbose=True):
-    cat_data_file, cat_ids = create_catalyst_input_file(input_fname)
-    
-    conf_files = gen_confs(cat_data_file, ncpu=ncpu, nconfs_list=nconfs, stereo=False, energy=energy, path=path, verbose=verbose)
-
-    os.remove(cat_data_file)
-    
-    react_out_fname = calc_2d_isida(input_fname, path=path)
-    
-    out_fnames = []
-    for nconf, conf_file in zip(nconfs, conf_files):
-
-        for dsc_calc_func, dsc_name in zip([calc_3d_pmapper], ['PhFprPmapper']):
-
-            cat_out_fname = dsc_calc_func(conf_file, ncpu=ncpu, path=path, verbose=verbose)
-            raws_out_fname = cat_out_fname.replace('txt', 'rownames')
-
-            with open(cat_out_fname) as f:
-                cat_dsc = f.readlines()
-
-            with open(raws_out_fname) as f:
-                cat_names = [i.strip() for i in f.readlines()]
-
-            cats_dict = defaultdict(list)
-            for i, j in zip(cat_names, cat_dsc):
-                cats_dict[int(i.split('_')[0])].append(j)
-            #
-            reacts = pd.read_csv(react_out_fname, index_col='react_id')
-            labels = reacts['act']
-
-            reacts_dict = {}
-            for i in reacts.drop(['act'], axis=1).index:
-
-                tmp = []
-                for n, d in enumerate(reacts.loc[i]):
-                    if d != 0:
-                        tmp.append(f'{n}:{d:.0f}')
-                reacts_dict[i] = tmp
-        #
-        shift = len(reacts.columns) + 1
-        react_rownames = []
-
-        out_fname_dsc = os.path.join(path, f'{dsc_name}_concat_data_{nconf}.txt')
-        with open(out_fname_dsc, 'w') as f:
-            for cat_name, cat_dsc in cats_dict.items():
-                for i in cat_ids[cat_name]:
-                    react = reacts_dict[i]
-                    for cat_conf in cats_dict[cat_name]:
-                        cat_conf = cat_conf.split(' ')
-                        cat_conf = [':'.join([str(int(i.split(':')[0]) + shift), i.split(':')[1].strip()]) for i in  cat_conf]
-
-                        react_cat_str = ' '.join(react + cat_conf) + '\n'
-
-                        f.write(react_cat_str)
-
-                        react_rownames.append(f'{i}:{labels[i]}' + '\n')
-        #
-        out_fname_rows = os.path.join(path, f'{dsc_name}_concat_data_{nconf}.rownames')
-        with open(out_fname_rows, 'w') as f:
-            f.write(''.join(react_rownames))
-
-    return out_fnames

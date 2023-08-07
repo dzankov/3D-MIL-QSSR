@@ -8,7 +8,6 @@ import itertools
 from multiprocessing import Pool, cpu_count
 from functools import partial
 from collections import defaultdict, Counter
-from rdkit.Chem import AllChem
 
 from pmapper.pharmacophore import Pharmacophore
 from pmapper.customize import load_smarts
@@ -194,7 +193,7 @@ def main(inp_fname=None, out_fname=None, smarts_features=None, factory=None,
         threshold = len(stat) * remove
         
         desc_ids = {k for k, v in c.items() if v >= threshold}
-        print(f'\n=> {len(desc_ids)} descriptors after removing rare descriptors.\n')
+        # print(f'\n=> {len(desc_ids)} descriptors after removing rare descriptors.\n')
 
         # create output files with removed descriptors
 

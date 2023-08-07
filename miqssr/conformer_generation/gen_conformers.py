@@ -74,7 +74,7 @@ def gen_confs(fname, nconfs_list, stereo=True, energy=50, path=None, ncpu=4, ver
 
     max_conf = max(nconfs_list)
 
-    conf_log = os.path.join(path, 'conf-{0}_{1}_log.pkl'.format(max_conf, os.path.basename(in_fname).split('.')[0]))
+    conf_log = os.path.join(path, 'catalyst_conformers_log.pkl')
     # conf_tupl[-1]=energy
     gen_conf_rdkit.main_params(in_fname=in_fname,
                                out_fname=conf_log,
@@ -87,7 +87,7 @@ def gen_confs(fname, nconfs_list, stereo=True, energy=50, path=None, ncpu=4, ver
                                verbose=verbose,
                                log=True)
 
-    out_partfname = os.path.join(path, 'conf-{0}_{1}.pkl'.format(os.path.basename(in_fname).split('.')[0], '{}'))
+    out_partfname = os.path.join(path, 'catalyst_conformers.pkl')
     # take n-confromer from conformer-log file
     out_fnames = get_n_confs(conf_log=conf_log, nconf_list=nconfs_list, out_partfname=out_partfname)
 
@@ -95,7 +95,7 @@ def gen_confs(fname, nconfs_list, stereo=True, energy=50, path=None, ncpu=4, ver
 
 def get_from_exist_log(conf_log, nconfs_list):
     ex_path = os.path.dirname(conf_log)
-    out_partfname = os.path.join(ex_path, 'conf-{0}_{1}.pkl'.format(os.path.basename(conf_log).split('.')[0], '{}'))
+    out_partfname = os.path.join(ex_path, 'catalyst_conformers_log.pkl')
 
     out_fnames = get_n_confs(conf_log=conf_log, nconf_list=nconfs_list, out_partfname=out_partfname)
     #print(out_fnames)
