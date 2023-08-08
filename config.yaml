@@ -5,17 +5,16 @@ General:
 Data:
   training_dataset_path: datasets/aptc/aptc_training_datatest.csv
   test_dataset_path: datasets/aptc/aptc_test_datatest.csv
-  reactants: ['REACTANT_1', 'REACTANT_2']
-  catalyst: ['CATALYST']
-  activity: ['ACTIVITY']
+  reactants: ['REACTANT_1', 'REACTANT_2'] # the names of columns with reactant smiles
+  catalyst: ['CATALYST'] # the name of column with catalyst smiles
+  activity: ['ACTIVITY'] # the name of column with target activity (only for training set)
 Conformers:
-  max_num_conf: 50
+  max_num_conf: 50 # max number of conformers
   energy_window: 50
 Descriptors:
-  num_descr: 3
-  smarts_path: smarts_features.txt
+  num_descr: 3 # 3 - atom triplets, 4 - atom quadruplets
 Algorithm:
-  type: InstanceWrapperMLPRegressor
+  type: InstanceWrapperMLPRegressor # choose one from [BagWrapperMLPRegressor, InstanceWrapperMLPRegressor, BagNetRegressor, InstanceNetRegressor, AttentionNetRegressor]
   pooling: mean
   learning_rate: 0.001
   weight_decay: 0.0001
