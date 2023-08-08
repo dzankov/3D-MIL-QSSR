@@ -1,6 +1,6 @@
 General:
-  num_cpu: 20
-  num_gpu: 1
+  num_cpu: 2
+  num_gpu: 0
   results_path: 3d_model_aptc
 Data:
   training_dataset_path: datasets/aptc/aptc_training_datatest.csv
