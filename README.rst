@@ -23,7 +23,7 @@ Install source code
 
 .. code-block:: bash
 
-    $ git clone https://github.com/dzankov/3D-MIL-QSAR
+    $ git clone https://github.com/dzankov/3D-MIL-QSSR
 
 Install required packages
 
