@@ -6,7 +6,7 @@ from rdkit import Chem
 from rdkit import DataStructs
 from rdkit.Chem import AllChem
 
-from sklearn.preprocessing import MaxAbsScaler
+from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler
 
 from pmapper.customize import load_smarts
 
@@ -24,7 +24,7 @@ def rdkit_numpy_convert(fp):
 
 
 def scale_data(x_train, x_test):
-    scaler = MaxAbsScaler()
+    scaler = MinMaxScaler()
     scaler.fit(np.vstack(x_train))
     x_train_scaled = x_train.copy()
     x_test_scaled = x_test.copy()
@@ -43,7 +43,7 @@ def load_svm_data(fname):
             tmp[int(i.split(':')[0])] = int(i.split(':')[1])
         #
         tmp_sorted = {}
-        for i in range(dsc_num):
+        for i in range(dsc_num + 1):
             tmp_sorted[i] = tmp.get(i, 0)
         vec = list(tmp_sorted.values())
 
@@ -56,7 +56,7 @@ def load_svm_data(fname):
     with open(fname.replace('txt', 'rownames')) as f:
         idx_tmp = [int(i.split('_')[0]) for i in f.readlines()]
     #
-    dsc_num = max([max([int(j.split(':')[0]) for j in i.strip().split(' ')]) for i in dsc_tmp]) + 1
+    dsc_num = max([max([int(j.split(':')[0]) for j in i.strip().split(' ')]) for i in dsc_tmp])
     #
     bags, idx = [], []
     for cat_idx in list(np.unique(idx_tmp)):

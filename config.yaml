@@ -1,23 +1,21 @@
 General:
   num_cpu: 2
-  num_gpu: 0
-  results_path: 3d_model_aptc
+  num_gpu: 1
+  results_path: mil_model_aptc
 Data:
-  training_dataset_path: datasets/aptc/aptc_training_datatest.csv
-  test_dataset_path: datasets/aptc/aptc_test_datatest.csv
-  reactants: ['REACTANT_1', 'REACTANT_2'] # the names of columns with reactant smiles
-  catalyst: ['CATALYST'] # the name of column with catalyst smiles
-  activity: ['ACTIVITY'] # the name of column with target activity (only for training set)
+  training_dataset_path: datasets/aptc-1/aptc_1_training_datatest.csv
+  test_dataset_path: datasets/aptc-1/aptc_1_test_datatest.csv
+  reactants: ['REACTANT_1', 'REACTANT_2']
+  catalyst: ['CATALYST']
+  activity: ['ACTIVITY']
 Conformers:
-  max_num_conf: 50 # max number of conformers
+  max_num_conf: 50
   energy_window: 50
 Descriptors:
-  num_descr: 3 # 3 - atom triplets, 4 - atom quadruplets
+  num_descr: 3
 Algorithm:
-  type: InstanceWrapperMLPRegressor # choose one from [BagWrapperMLPRegressor, InstanceWrapperMLPRegressor, BagNetRegressor, InstanceNetRegressor, AttentionNetRegressor]
+  type: InstanceWrapperMLPRegressor
   pooling: mean
   learning_rate: 0.001
-  weight_decay: 0.0001
-  n_epoch: 500
-
-
+  weight_decay: 0.001
+  n_epoch: 1000
