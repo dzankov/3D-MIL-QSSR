@@ -87,6 +87,7 @@ def build_model(config_path):
     logging.info(f'Calculate descriptors for training catalysts ...')
 
     smarts_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'smarts_features.txt')
+
     bags_dict_train = calc_catalyst_descr(conf_file=confs_train_path,
                                           smarts_features=smarts_file,
                                           ncpu=config['General']['num_cpu'],

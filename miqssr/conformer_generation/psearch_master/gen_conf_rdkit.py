@@ -215,7 +215,7 @@ def main_params(in_fname, out_fname, id_field_name, nconf, energy, rms, ncpu, se
                             writer.write(string.encode("ascii") if output_file_type == 'sdf.gz' else string)
 
             if True:
-                print(f'Conformation generation: {i}/{n_mols_max} molecules passed.',  end='\r')
+                print(f'Conformer generation: {i}/{n_mols_max} molecules passed.',  end='\r')
         print(f'Conformer generation: {i}/{n_mols_max} molecules passed.')
 
     finally:
